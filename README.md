@@ -27,7 +27,7 @@ export OPENAI_API_KEY=sk-...
 
 1. Install [LM Studio](https://lmstudio.ai/).
 2. Open **Developer → Start Server** (defaults to `http://localhost:1234`).
-3. Load any chat-capable model (e.g. `qwen/qwen3-4b`).
+3. Load any chat-capable model (e.g. `liquid/lfm2.5-1.2b`).
 4. If your loaded model id differs from the example default, override it: `MODEL=<id> npm run example:chat_lmstudio`.
 
 ## Examples
@@ -38,7 +38,7 @@ export OPENAI_API_KEY=sk-...
 | `npm run example:chat_lmstudio` | Same call, routed to your local LM Studio server. |
 | `npm run example:agent_openai` | Minimal [@openai/agents](https://openai.github.io/openai-agents-js/) run via OpenAI (uses the Responses API). |
 | `npm run example:agent_lmstudio` | Same agent, routed to LM Studio. Uses the Chat Completions model class because LM Studio doesn't implement `/v1/responses`. |
-| `npm run example:chat_openai_full` | OpenAI chat call wrapped with [openai-cache](https://www.npmjs.com/package/openai-cache) and [openai-cost](https://www.npmjs.com/package/openai-cost), both backed by sqlite. Sqlite files land in `outputs/`. Run twice to see the second run served from cache. |
+| `npm run example:chat_openai_full` | OpenAI chat call wrapped with [openai-cache](https://github.com/jeromeetienne/openai-cache) and [openai-cost](https://github.com/jeromeetienne/openai-cost), both backed by sqlite. Sqlite files land in `outputs/`. Run twice to see the second run served from cache. |
 
 Every example accepts `MODEL=<id>` to override its default:
 
@@ -64,5 +64,5 @@ outputs/                       generated sqlite files for the "full" example
 - TypeScript (ES2020, strict), executed with [`tsx`](https://github.com/privatenumber/tsx)
 - [`openai`](https://www.npmjs.com/package/openai) SDK
 - [`@openai/agents`](https://openai.github.io/openai-agents-js/) for the agent examples
-- [`openai-cache`](https://www.npmjs.com/package/openai-cache) + [`openai-cost`](https://www.npmjs.com/package/openai-cost) (sqlite) in the "full" example
+- [`openai-cache`](https://github.com/jeromeetienne/openai-cache) + [`openai-cost`](https://github.com/jeromeetienne/openai-cost) (sqlite) in the "full" example
 - Zod for runtime validation
