@@ -1,0 +1,275 @@
+# How to run the OpenAI Agents JS SDK against local models
+
+The [OpenAI Agents JS SDK](https://openai.github.io/openai-agents-js/) is one of the
+nicest ways to build agentic apps in TypeScript today — tools, handoffs, tracing, and
+guardrails all live behind a small API surface. But the official narrative assumes you
+are calling `api.openai.com` and burning credits every time you iterate.
+
+**Good news: you do not have to.** With a one-line change to the model wiring, the same
+agent code runs against a model loaded in [LM Studio](https://lmstudio.ai/) or
+[Ollama](https://ollama.com/) on your laptop. No API key. No network. No bill.
+
+This guide walks you through it end-to-end, explains the one gotcha that trips people up
+(spoiler: `/v1/responses`), and links to runnable code in this repo.
+
+> **TL;DR** — swap `OpenAIResponsesModel` for `OpenAIChatCompletionsModel`, point the
+> `OpenAI` client at `http://localhost:1234/v1` (LM Studio) or `http://localhost:11434/v1`
+> (Ollama), and run.
+
+---
+
+## Why bother running the Agents SDK locally?
+
+A few reasons developers reach for this setup:
+
+- **Iteration speed.** No round trip across the public internet. With a 1B–4B model on a
+  modern laptop, you get sub-second responses for short prompts.
+- **Cost.** Local inference is free. Iterating on a prompt, debugging a tool call, or
+  rerunning an eval suite 200 times does not add a cent.
+- **Privacy.** Whatever you send the model stays on your machine. Useful when prompts
+  contain proprietary code, customer data, or anything that should not leave the laptop.
+- **Offline.** Planes, trains, conference Wi-Fi that requires logging into a captive
+  portal you do not have credentials for — none of that matters when the model lives at
+  `localhost`.
+
+You give up frontier capability, of course. A 4B local model is not GPT-4o. But for a
+huge chunk of agent development — wiring up tools, writing instructions, shaping
+outputs, building evals — you do not need a frontier model. You need a model that
+responds quickly so you can iterate.
+
+---
+
+## The one thing that catches everyone: Responses vs. Chat Completions
+
+OpenAI's hosted API exposes two endpoints that can drive an agent:
+
+- `/v1/chat/completions` — the older, ubiquitous one. Every OpenAI-compatible server in
+  the wild implements it.
+- `/v1/responses` — OpenAI's newer, stateful API. The Agents SDK defaults to this when
+  you use `OpenAIResponsesModel`.
+
+**LM Studio and Ollama implement `/v1/chat/completions` but NOT `/v1/responses`.**
+
+That is the entire reason the local examples in this repo use a different model class:
+
+```ts
+// Talking to api.openai.com → Responses API is fine
+import { OpenAIResponsesModel } from '@openai/agents-openai';
+const model = new OpenAIResponsesModel(openaiClient, modelName);
+
+// Talking to localhost → Chat Completions API
+import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
+const model = new OpenAIChatCompletionsModel(openaiClient, modelName);
+```
+
+Both classes are first-class citizens of `@openai/agents-openai`. The Agents SDK works
+the same way with either — the only thing that changes is the underlying HTTP shape.
+
+If you forget to swap the class and point a `OpenAIResponsesModel` at LM Studio, you'll
+get a `404` from the local server. That is the symptom; the fix is the class swap above.
+
+---
+
+## Setup
+
+### 1. Install dependencies
+
+```sh
+npm install
+```
+
+The relevant packages are `openai`, `@openai/agents`, and `@openai/agents-openai`.
+
+### 2. Pick (and start) a local server
+
+#### Option A — LM Studio (GUI-first)
+
+1. Install [LM Studio](https://lmstudio.ai/).
+2. Start the local server: `lms server start` (defaults to `http://localhost:1234`).
+3. Load a chat-capable model — for example: `lms load liquid/lfm2.5-1.2b`.
+
+#### Option B — Ollama (CLI-first)
+
+1. Install [Ollama](https://ollama.com/).
+2. Pull a chat model: `ollama pull llama3.2:1b`.
+3. The desktop app auto-starts the server. Otherwise run `ollama serve`. Defaults to
+   `http://localhost:11434`.
+
+Both servers expose an OpenAI-compatible HTTP API. From the SDK's perspective, the only
+difference between them is the URL and a placeholder API key.
+
+---
+
+## Minimal example, step by step
+
+Here is the complete LM Studio version, lifted from
+[examples/agent_sdk_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_lmstudio.ts):
+
+```ts
+import { OpenAI } from 'openai';
+import OpenaiAgents from '@openai/agents';
+import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
+
+const modelName = process.env.MODEL ?? 'liquid/lfm2.5-1.2b';
+
+// 1. Point the OpenAI client at the local server.
+const openaiClient = new OpenAI({
+        baseURL: 'http://localhost:1234/v1',
+        apiKey: 'lm-studio', // any non-empty string works; the server ignores it
+});
+
+// 2. Wrap it in the Chat Completions model class (NOT Responses).
+const model = new OpenAIChatCompletionsModel(openaiClient, modelName);
+
+// 3. From here on it's vanilla @openai/agents.
+const agent = new OpenaiAgents.Agent({
+        name: 'OctopusBot',
+        instructions: 'You answer in a single short sentence.',
+        model,
+});
+
+const result = await OpenaiAgents.run(
+        agent,
+        'Say hello and name one fun fact about octopuses.',
+);
+
+console.log(`[model=${modelName}] ${result.finalOutput ?? '(no output)'}`);
+```
+
+Run it:
+
+```sh
+npm run example:agent_lmstudio
+```
+
+For Ollama, only two lines change — the `baseURL` and the `apiKey`:
+
+```ts
+const openaiClient = new OpenAI({
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'ollama',
+});
+```
+
+See [examples/agent_sdk_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_ollama.ts) for the full file.
+
+For comparison, the OpenAI-hosted version
+([examples/agent_sdk_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_openai.ts)) is identical except
+for the model class:
+
+```ts
+import { OpenAIResponsesModel } from '@openai/agents-openai';
+
+const openaiClient = new OpenAI(); // reads OPENAI_API_KEY from env
+const model = new OpenAIResponsesModel(openaiClient, modelName);
+```
+
+Same agent definition. Same `OpenaiAgents.run()` call. Same `result.finalOutput`. The
+only difference is *where the tokens are computed*.
+
+---
+
+## What still works locally
+
+Most of the Agents SDK does not care whether the model lives on OpenAI's servers or your
+laptop. You keep:
+
+- **Agents and instructions.** The `new Agent({ name, instructions, model })` shape is
+  unchanged.
+- **`OpenaiAgents.run()`.** The runner, retries, and turn loop are SDK-side, not
+  server-side.
+- **Tools.** Function calling works as long as the local model is trained for it.
+  Llama 3.1+, Qwen 2.5+, Mistral, and most modern chat models support tool calls via the
+  Chat Completions API. Smaller models (1B–3B) can be hit-or-miss on tool reliability —
+  if your agent stops calling tools, try a larger model before you blame your prompt.
+- **Structured outputs.** Pass a Zod schema as your agent's `outputType` and you get
+  validated JSON back. Most local backends translate this to grammar-constrained
+  decoding, which is fast and reliable.
+- **Handoffs.** Agent-to-agent handoffs are SDK-orchestrated, so they just work.
+
+## What is more limited
+
+- **Built-in OpenAI-hosted tools** (web search, file search, code interpreter, computer
+  use) are part of the Responses API and *not* available locally. You can replicate any
+  of them with your own function tools, but the SDK's built-in handles will not work
+  against a local backend.
+- **Tracing.** The hosted Agents tracing dashboard expects OpenAI as the backend. Local
+  runs are not traced there. Use console logs, the `AGENTS_SDK_DEBUG` env var, or pipe
+  events to your own sink.
+- **Model quality.** A 1B model is a 1B model. If your agent needs nuanced reasoning,
+  develop locally for the wiring and switch the model class back to
+  `OpenAIResponsesModel` (or any frontier provider's adapter) for the high-stakes runs.
+
+---
+
+## Useful tricks
+
+### Override the model from the CLI
+
+Every example in this repo accepts a `MODEL=<id>` env var:
+
+```sh
+MODEL=qwen/qwen3-8b npm run example:agent_lmstudio
+MODEL=qwen3:4b      npm run example:agent_ollama
+MODEL=gpt-4o        npm run example:agent_openai
+```
+
+That makes it trivial to A/B a prompt across three different local models without
+editing code.
+
+### Cache responses for free, even locally
+
+The "full" example in this repo
+([examples/openai_chat_openai_full.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_openai_full.ts))
+demonstrates wrapping the `openai` client with
+[openai-cache](https://github.com/jeromeetienne/openai-cache). It sits at the HTTP fetch
+layer and is content-addressed, so it does not care whether the upstream is OpenAI or
+`localhost:11434`. Run the same prompt twice and the second run is instant.
+
+This is genuinely useful when you are iterating on the *non-model* parts of an agent
+(tool implementations, output parsing, etc.) and do not want to re-spin a local model
+on every save.
+
+### Sanity-check the local server is alive
+
+If `npm run example:agent_lmstudio` hangs or 404s, hit the OpenAI-compatible endpoint
+directly:
+
+```sh
+curl http://localhost:1234/v1/models           # LM Studio
+curl http://localhost:11434/v1/models          # Ollama
+```
+
+Both should list the models the server currently knows about. If they do not, the
+server is not running (or is on a different port).
+
+---
+
+## Recap
+
+Running the OpenAI Agents JS SDK locally comes down to three lines:
+
+```ts
+const openaiClient = new OpenAI({ baseURL: 'http://localhost:1234/v1', apiKey: 'lm-studio' });
+const model = new OpenAIChatCompletionsModel(openaiClient, modelName);
+const agent = new OpenaiAgents.Agent({ name: 'OctopusBot', instructions: '…', model });
+```
+
+Everything else — agents, tools, handoffs, `OpenaiAgents.run()`, structured outputs —
+is exactly the code you would have written against OpenAI. That is the whole pitch of an
+"OpenAI-compatible" local stack, and it really does pay off as soon as you start
+iterating.
+
+Have fun. Build something. Watch your token bill not move.
+
+## Further reading
+
+- OpenAI Agents JS SDK: <https://openai.github.io/openai-agents-js/>
+- OpenAI Agents JS GitHub: <https://github.com/openai/openai-agents-js>
+- OpenAI's Agents guide: <https://developers.openai.com/api/docs/guides/agents>
+- LM Studio: <https://lmstudio.ai/>
+- Ollama: <https://ollama.com/>
+- Runnable examples in this repo:
+  [examples/agent_sdk_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_openai.ts),
+  [examples/agent_sdk_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_lmstudio.ts),
+  [examples/agent_sdk_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_ollama.ts).
