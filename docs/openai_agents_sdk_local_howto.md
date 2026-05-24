@@ -28,8 +28,10 @@ Agents SDK pointed at a local model. Levers #2 and #3 get their own sections lat
 in the article because they compose cleanly on top of the same wiring.
 
 > **TL;DR** — swap `OpenAIResponsesModel` for `OpenAIChatCompletionsModel`, point the
-> `OpenAI` client at `http://localhost:1234/v1` (LM Studio) or `http://localhost:11434/v1`
-> (Ollama), and run.
+> `OpenAI` client at `http://localhost:1234/v1` (LM Studio), `http://localhost:11434/v1`
+> (Ollama), or `https://generativelanguage.googleapis.com/v1beta/openai/` (Google
+> Gemini's OpenAI-compatible endpoint — hosted, not local, but the same class swap
+> applies), and run.
 
 ---
 
@@ -63,16 +65,18 @@ OpenAI's hosted API exposes two endpoints that can drive an agent:
 - `/v1/responses` — OpenAI's newer, stateful API. The Agents SDK defaults to this when
   you use `OpenAIResponsesModel`.
 
-**LM Studio and Ollama implement `/v1/chat/completions` but NOT `/v1/responses`.**
+**LM Studio, Ollama, and Google Gemini's OpenAI-compatible endpoint all implement
+`/v1/chat/completions` but NOT `/v1/responses`.**
 
-That is the entire reason the local examples in this repo use a different model class:
+That is the entire reason the non-OpenAI examples in this repo use a different model
+class:
 
 ```ts
 // Talking to api.openai.com → Responses API is fine
 import { OpenAIResponsesModel } from '@openai/agents-openai';
 const model = new OpenAIResponsesModel(openaiClient, modelName);
 
-// Talking to localhost → Chat Completions API
+// Talking to localhost (LM Studio / Ollama) or Gemini → Chat Completions API
 import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
 const model = new OpenAIChatCompletionsModel(openaiClient, modelName);
 ```
@@ -80,8 +84,9 @@ const model = new OpenAIChatCompletionsModel(openaiClient, modelName);
 Both classes are first-class citizens of `@openai/agents-openai`. The Agents SDK works
 the same way with either — the only thing that changes is the underlying HTTP shape.
 
-If you forget to swap the class and point a `OpenAIResponsesModel` at LM Studio, you'll
-get a `404` from the local server. That is the symptom; the fix is the class swap above.
+If you forget to swap the class and point a `OpenAIResponsesModel` at LM Studio, Ollama,
+or Gemini, you'll get a `404` from the server. That is the symptom; the fix is the class
+swap above.
 
 ---
 
@@ -95,23 +100,34 @@ npm install
 
 The relevant packages are `openai`, `@openai/agents`, and `@openai/agents-openai`.
 
-### 2. Pick (and start) a local server
+### 2. Pick a backend
 
-#### Option A — LM Studio (GUI-first)
+#### Option A — LM Studio (local, GUI-first)
 
 1. Install [LM Studio](https://lmstudio.ai/).
 2. Start the local server: `lms server start` (defaults to `http://localhost:1234`).
 3. Load a chat-capable model — for example: `lms load liquid/lfm2.5-1.2b`.
 
-#### Option B — Ollama (CLI-first)
+#### Option B — Ollama (local, CLI-first)
 
 1. Install [Ollama](https://ollama.com/).
 2. Pull a chat model: `ollama pull llama3.2:1b`.
 3. The desktop app auto-starts the server. Otherwise run `ollama serve`. Defaults to
    `http://localhost:11434`.
 
-Both servers expose an OpenAI-compatible HTTP API. From the SDK's perspective, the only
-difference between them is the URL and a placeholder API key.
+#### Option C — Google Gemini (hosted, OpenAI-compatible)
+
+Gemini is *not* local, but it speaks the same OpenAI HTTP protocol and exposes only
+`/v1/chat/completions` (no `/v1/responses`), so the wiring is identical to the local
+backends — same model class, same client shape, only the URL and API key change.
+
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey).
+2. Export it: `export GEMINI_API_KEY=...`.
+3. Endpoint is `https://generativelanguage.googleapis.com/v1beta/openai/`. Full
+   reference: <https://ai.google.dev/gemini-api/docs/openai>.
+
+All three backends expose an OpenAI-compatible HTTP API. From the SDK's perspective, the
+only thing that changes between them is the URL and the API key.
 
 ---
 
@@ -167,6 +183,19 @@ const openaiClient = new OpenAI({
 ```
 
 See [examples/agent_sdk_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_ollama.ts) for the full file.
+
+For Gemini, the same two lines change again — point at Google's OpenAI-compatible
+endpoint and use the `GEMINI_API_KEY` env var as a real API key (unlike the placeholder
+strings the local servers accept):
+
+```ts
+const openaiClient = new OpenAI({
+        baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/',
+        apiKey: process.env.GEMINI_API_KEY,
+});
+```
+
+See [examples/agent_sdk_gemini.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_gemini.ts) for the full file.
 
 For comparison, the OpenAI-hosted version
 ([examples/agent_sdk_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_openai.ts)) is identical except
@@ -224,15 +253,15 @@ laptop. You keep:
 Every example in this repo accepts a `MODEL=<id>` env var:
 
 ```sh
-MODEL=qwen/qwen3-8b npm run example:agent_lmstudio
-MODEL=qwen3:4b      npm run example:agent_ollama
-MODEL=gpt-4o        npm run example:agent_openai
+MODEL=qwen/qwen3-8b   npm run example:agent_lmstudio
+MODEL=qwen3:4b        npm run example:agent_ollama
+MODEL=gemini-2.5-pro  npm run example:agent_gemini
+MODEL=gpt-4o          npm run example:agent_openai
 ```
 
-That makes it trivial to A/B a prompt across three different local models without
-editing code.
+That makes it trivial to A/B a prompt across several backends without editing code.
 
-### Sanity-check the local server is alive
+### Sanity-check the backend is alive
 
 If `npm run example:agent_lmstudio` hangs or 404s, hit the OpenAI-compatible endpoint
 directly:
@@ -240,10 +269,13 @@ directly:
 ```sh
 curl http://localhost:1234/v1/models           # LM Studio
 curl http://localhost:11434/v1/models          # Ollama
+curl https://generativelanguage.googleapis.com/v1beta/openai/models \
+        -H "Authorization: Bearer $GEMINI_API_KEY"   # Gemini
 ```
 
-Both should list the models the server currently knows about. If they do not, the
-server is not running (or is on a different port).
+All three should list the models the backend currently knows about. If the local ones
+do not, the server is not running (or is on a different port). If Gemini returns a
+`401`/`403`, double-check `GEMINI_API_KEY`.
 
 ---
 
@@ -386,9 +418,11 @@ Have fun. Build something. Watch your token bill not move.
 - OpenAI's Agents guide: <https://developers.openai.com/api/docs/guides/agents>
 - LM Studio: <https://lmstudio.ai/>
 - Ollama: <https://ollama.com/>
+- Gemini's OpenAI-compatible endpoint: <https://ai.google.dev/gemini-api/docs/openai>
 - openai-cache: <https://github.com/jeromeetienne/openai-cache>
 - openai-cost: <https://github.com/jeromeetienne/openai-cost>
 - Runnable examples in this repo:
   [examples/agent_sdk_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_openai.ts),
   [examples/agent_sdk_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_lmstudio.ts),
-  [examples/agent_sdk_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_ollama.ts).
+  [examples/agent_sdk_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_ollama.ts),
+  [examples/agent_sdk_gemini.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_gemini.ts).
