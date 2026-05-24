@@ -1,5 +1,5 @@
-// local imports
-import { UtilsAi } from '../src/libs/utils-ai.js';
+// npm imports
+import { OpenAI } from 'openai';
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,10 @@ import { UtilsAi } from '../src/libs/utils-ai.js';
 
 const modelName = process.env.MODEL ?? 'qwen/qwen3-4b';
 
-const openaiClient = UtilsAi.getOpenAiClient({ provider: UtilsAi.PROVIDER.LMSTUDIO });
+const openaiClient = new OpenAI({
+	baseURL: 'http://localhost:1234/v1',
+	apiKey: 'lm-studio',
+});
 
 const response = await openaiClient.chat.completions.create({
 	model: modelName,

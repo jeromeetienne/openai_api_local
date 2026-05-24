@@ -1,9 +1,7 @@
 // npm imports
-import { Agent, run } from '@openai/agents';
+import { OpenAI } from 'openai';
+import OpenaiAgents from '@openai/agents';
 import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
-
-// local imports
-import { UtilsAi } from '../src/libs/utils-ai.js';
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -17,14 +15,17 @@ import { UtilsAi } from '../src/libs/utils-ai.js';
 
 const modelName = process.env.MODEL ?? 'qwen/qwen3-4b';
 
-const openaiClient = UtilsAi.getOpenAiClient({ provider: UtilsAi.PROVIDER.LMSTUDIO });
+const openaiClient = new OpenAI({
+	baseURL: 'http://localhost:1234/v1',
+	apiKey: 'lm-studio',
+});
 const model = new OpenAIChatCompletionsModel(openaiClient, modelName);
 
-const agent = new Agent({
+const agent = new OpenaiAgents.Agent({
 	name: 'OctopusBot',
 	instructions: 'You answer in a single short sentence.',
 	model,
 });
 
-const result = await run(agent, 'Say hello and name one fun fact about octopuses.');
+const result = await OpenaiAgents.run(agent, 'Say hello and name one fun fact about octopuses.');
 console.log(`[model=${modelName}] ${result.finalOutput ?? '(no output)'}`);

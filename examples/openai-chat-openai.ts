@@ -1,5 +1,5 @@
-// local imports
-import { UtilsAi } from '../src/libs/utils-ai.js';
+// npm imports
+import { OpenAI } from 'openai';
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@ import { UtilsAi } from '../src/libs/utils-ai.js';
 
 const modelName = process.env.MODEL ?? 'gpt-4o-mini';
 
-const openaiClient = UtilsAi.getOpenAiClient({ provider: UtilsAi.PROVIDER.OPENAI });
+const openaiClient = new OpenAI();
 
 const response = await openaiClient.chat.completions.create({
 	model: modelName,
