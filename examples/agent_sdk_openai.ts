@@ -7,7 +7,7 @@ import { OpenAIResponsesModel } from '@openai/agents-openai';
 ///////////////////////////////////////////////////////////////////////////////
 //	Minimal @openai/agents run against api.openai.com using the Responses API.
 //	Requires the OPENAI_API_KEY env var.
-//	Override the model with MODEL=gpt-4o npm run example:agent-openai
+//	Override the model with MODEL=gpt-4o npm run example:agent_openai
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -22,5 +22,9 @@ const agent = new OpenaiAgents.Agent({
 	model,
 });
 
+const startedAt = performance.now();
 const result = await OpenaiAgents.run(agent, 'Say hello and name one fun fact about octopuses.');
+const inferenceSeconds = ((performance.now() - startedAt) / 1000).toFixed(2);
+
 console.log(`[model=${modelName}] ${result.finalOutput ?? '(no output)'}`);
+console.log(`(inference: ${inferenceSeconds}s)`);

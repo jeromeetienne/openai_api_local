@@ -7,7 +7,7 @@ import { OpenAI } from 'openai';
 import { Cacheable } from 'cacheable';
 import OpenAICache from 'openai-cache';
 import KeyvSqlite from '@keyv/sqlite';
-import { OpenAICallTracker, OpenAiCostTrackerSqlite } from 'openai-cost';
+import OpenAiCost from 'openai-cost';
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@ import { OpenAICallTracker, OpenAiCostTrackerSqlite } from 'openai-cost';
 //	is wrapped with openai-cache (sqlite-backed) and openai-cost (sqlite-backed
 //	cost tracking). Run twice to see the second run answer from cache.
 //	Requires OPENAI_API_KEY.
-//	Override the model with MODEL=gpt-4o npm run example:chat-openai-full
+//	Override the model with MODEL=gpt-4o npm run example:chat_openai_full
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -34,11 +34,11 @@ const openaiCache = new OpenAICache(sqliteCache, { markResponseEnabled: true });
 
 // 2. cost tracker backed by sqlite
 const trackerDbPath = Path.resolve(OUTPUTS_DIR, '.openai_cost_tracker.sqlite');
-const trackerSqlite = new OpenAiCostTrackerSqlite(trackerDbPath);
+const trackerSqlite = new OpenAiCost.OpenAiCostTrackerSqlite(trackerDbPath);
 await trackerSqlite.init();
 
 // 3. compose: cost-tracker fetch wraps cache fetch wraps global fetch
-const fetchWithTracking = await OpenAICallTracker.getFetchFn(
+const fetchWithTracking = await OpenAiCost.OpenAICallTracker.getFetchFn(
 	await trackerSqlite.getTrackerCallback(),
 	{
 		bucketId,
@@ -48,6 +48,7 @@ const fetchWithTracking = await OpenAICallTracker.getFetchFn(
 
 const openaiClient = new OpenAI({ fetch: fetchWithTracking });
 
+const startedAt = performance.now();
 const response = await openaiClient.chat.completions.create({
 	model: modelName,
 	messages: [
@@ -55,11 +56,12 @@ const response = await openaiClient.chat.completions.create({
 		{ role: 'user', content: 'Say hello and name one fun fact about octopuses.' },
 	],
 });
+const inferenceSeconds = ((performance.now() - startedAt) / 1000).toFixed(2);
 
 const reply = response.choices[0]?.message.content ?? '(no content)';
 const fromCache = (response as unknown as { x_from_openai_cache?: boolean }).x_from_openai_cache === true;
 console.log(`[model=${modelName}] ${reply}`);
-console.log(`(served from cache: ${fromCache})`);
+console.log(`(inference: ${inferenceSeconds}s, served from cache: ${fromCache})`);
 
 const summary = await trackerSqlite.getSummaryCosts();
 console.log('cost summary:', JSON.stringify(summary, null, 2));

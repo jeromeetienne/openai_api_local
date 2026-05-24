@@ -8,11 +8,11 @@
 		"build": "tsc -p tsconfig.build.json",
 		"start": "node dist/index.js",
 		"typecheck": "tsc --noEmit",
-		"example:chat-openai": "tsx examples/openai-chat-openai.ts",
-		"example:chat-lmstudio": "tsx examples/openai-chat-lmstudio.ts",
-		"example:agent-openai": "tsx examples/agent-sdk-openai.ts",
-		"example:agent-lmstudio": "tsx examples/agent-sdk-lmstudio.ts",
-		"example:chat-openai-full": "tsx examples/openai-chat-openai-full.ts"
+		"example:chat_openai": "tsx examples/openai_chat_openai.ts",
+		"example:chat_lmstudio": "tsx examples/openai_chat_lmstudio.ts",
+		"example:agent_openai": "tsx examples/agent_sdk_openai.ts",
+		"example:agent_lmstudio": "tsx examples/agent_sdk_lmstudio.ts",
+		"example:chat_openai_full": "tsx examples/openai_chat_openai_full.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.0",
