@@ -5,12 +5,27 @@ nicest ways to build agentic apps in TypeScript today — tools, handoffs, traci
 guardrails all live behind a small API surface. But the official narrative assumes you
 are calling `api.openai.com` and burning credits every time you iterate.
 
-**Good news: you do not have to.** With a one-line change to the model wiring, the same
-agent code runs against a model loaded in [LM Studio](https://lmstudio.ai/) or
-[Ollama](https://ollama.com/) on your laptop. No API key. No network. No bill.
+**This article — and this whole repo — is really about one thing: keeping the cost of
+running OpenAI-style AI under control, all through a single API surface.** The OpenAI
+HTTP protocol has become a *lingua franca*; once your code speaks it, you get three
+cost-control levers you can pull, in roughly increasing cost:
 
-This guide walks you through it end-to-end, explains the one gotcha that trips people up
-(spoiler: `/v1/responses`), and links to runnable code in this repo.
+1. **Run the model locally** — with [LM Studio](https://lmstudio.ai/) or
+   [Ollama](https://ollama.com/), the model lives on your laptop. No API key, no
+   network, no bill. Cheapest possible inference: free.
+2. **Cache hosted calls** — when you *do* hit `api.openai.com`, wrap the client in
+   [openai-cache](https://github.com/jeromeetienne/openai-cache) so identical requests
+   come back from a local sqlite file instead of from OpenAI. Cheaper than uncached
+   OpenAI, because the second call onward costs nothing.
+3. **Track what you spent** — for whatever you couldn't cache or run locally,
+   [openai-cost](https://github.com/jeromeetienne/openai-cost) records every paid call
+   into sqlite with a bucket id so you can see, per feature or per script, exactly
+   what it cost.
+
+The unifying trick is that all three plug into the same `OpenAI` client — same
+imports, same types, same agent code. **This guide focuses on lever #1**: getting the
+Agents SDK pointed at a local model. Levers #2 and #3 get their own sections later
+in the article because they compose cleanly on top of the same wiring.
 
 > **TL;DR** — swap `OpenAIResponsesModel` for `OpenAIChatCompletionsModel`, point the
 > `OpenAI` client at `http://localhost:1234/v1` (LM Studio) or `http://localhost:11434/v1`
@@ -217,19 +232,6 @@ MODEL=gpt-4o        npm run example:agent_openai
 That makes it trivial to A/B a prompt across three different local models without
 editing code.
 
-### Cache responses for free, even locally
-
-The "full" example in this repo
-([examples/openai_chat_openai_full.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_openai_full.ts))
-demonstrates wrapping the `openai` client with
-[openai-cache](https://github.com/jeromeetienne/openai-cache). It sits at the HTTP fetch
-layer and is content-addressed, so it does not care whether the upstream is OpenAI or
-`localhost:11434`. Run the same prompt twice and the second run is instant.
-
-This is genuinely useful when you are iterating on the *non-model* parts of an agent
-(tool implementations, output parsing, etc.) and do not want to re-spin a local model
-on every save.
-
 ### Sanity-check the local server is alive
 
 If `npm run example:agent_lmstudio` hangs or 404s, hit the OpenAI-compatible endpoint
@@ -242,6 +244,121 @@ curl http://localhost:11434/v1/models          # Ollama
 
 Both should list the models the server currently knows about. If they do not, the
 server is not running (or is on a different port).
+
+---
+
+## Caching agent responses with openai-cache
+
+The Agents SDK calls your model on every `OpenaiAgents.run()` invocation. During
+development that means re-running the same prompt against the same model dozens of
+times while you tweak surrounding code. Even on a fast local model, that adds up to
+real seconds of waiting per save.
+
+[**openai-cache**](https://github.com/jeromeetienne/openai-cache) makes those repeats
+instant. It is a content-addressed cache for OpenAI-style requests: same `model` +
+`messages` + params produces the same key, and the response is served straight from
+sqlite instead of from the model. Sqlite-backed means **zero infrastructure** — no
+Redis, no daemon, just a file in `outputs/`.
+
+**The killer detail: openai-cache works against local backends too.** It sits at the
+HTTP fetch layer and keys off the request payload, so it does not care whether the
+response would have come from `api.openai.com` or `localhost:11434`. Iterating on a
+prompt with a 4B local model and re-running the same input ten times? The first run
+goes to the model, the next nine come back from sqlite in milliseconds.
+
+The composition trick is that the OpenAI client accepts a custom `fetch`, and the
+Agents SDK uses that client underneath — so caching the fetch caches the agent:
+
+```ts
+import { OpenAI } from 'openai';
+import OpenaiAgents from '@openai/agents';
+import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
+import { Cacheable } from 'cacheable';
+import OpenAICache from 'openai-cache';
+import KeyvSqlite from '@keyv/sqlite';
+
+// 1. sqlite-backed cache
+const sqliteCache = new Cacheable({
+        secondary: new KeyvSqlite('sqlite://./outputs/.openai_cache.sqlite'),
+});
+const openaiCache = new OpenAICache(sqliteCache, { markResponseEnabled: true });
+
+// 2. OpenAI client points at Ollama, with the cached fetch wired in
+const openaiClient = new OpenAI({
+        baseURL: 'http://localhost:11434/v1',
+        apiKey: 'ollama',
+        fetch: openaiCache.getFetchFn(),
+});
+
+// 3. agent code below is unchanged
+const model = new OpenAIChatCompletionsModel(openaiClient, 'llama3.2:1b');
+const agent = new OpenaiAgents.Agent({
+        name: 'OctopusBot',
+        instructions: 'You answer in a single short sentence.',
+        model,
+});
+
+const result = await OpenaiAgents.run(agent, 'Say hello.');
+```
+
+When `markResponseEnabled: true` is set, the cache stamps cached responses with
+`x_from_openai_cache: true`, so you can see at a glance which runs were served from
+sqlite vs. recomputed.
+
+The runnable composition pattern (cache + cost tracker around the OpenAI client) lives
+in [examples/openai_chat_openai_full.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_openai_full.ts).
+It uses `chat.completions` directly, but the wrapping is identical for agents — just
+hand the same `openaiClient` to `OpenAIChatCompletionsModel` (or `OpenAIResponsesModel`
+for hosted runs).
+
+---
+
+## Tracking spend with openai-cost
+
+The flip side of caching is knowing what you spent when you *don't* cache.
+
+[**openai-cost**](https://github.com/jeromeetienne/openai-cost) records every call —
+model, tokens in, tokens out, computed USD cost, and an arbitrary **bucket id** —
+into a sqlite database. Bucket ids let you group spending by feature, script, user,
+eval suite, or whatever dimension you care about. At the end of a run (or any time
+later) you can call `getSummaryCosts()` and see exactly what each bucket cost.
+
+It is OpenAI-specific in practice — local inference is free, so there is nothing to
+price for LM Studio or Ollama runs. But for the parts of your stack that *do* hit
+`api.openai.com`, this is a much nicer answer than squinting at the OpenAI billing
+dashboard a week later.
+
+Like openai-cache, it composes at the `fetch` layer:
+
+```ts
+import { OpenAI } from 'openai';
+import OpenAiCost from 'openai-cost';
+import { OpenAIResponsesModel } from '@openai/agents-openai';
+
+const trackerSqlite = new OpenAiCost.OpenAiCostTrackerSqlite(
+        './outputs/.openai_cost_tracker.sqlite',
+);
+await trackerSqlite.init();
+
+const fetchWithTracking = await OpenAiCost.OpenAICallTracker.getFetchFn(
+        await trackerSqlite.getTrackerCallback(),
+        { bucketId: 'agent_octopusbot', originalFetch: openaiCache.getFetchFn() },
+);
+
+const openaiClient = new OpenAI({ fetch: fetchWithTracking });
+const model = new OpenAIResponsesModel(openaiClient, 'gpt-4o-mini');
+// ... build the agent and call OpenaiAgents.run() as usual
+
+const summary = await trackerSqlite.getSummaryCosts();
+console.log(summary); // → costs grouped by bucketId, model, etc.
+```
+
+Notice the `originalFetch: openaiCache.getFetchFn()` — that is the composition pattern
+the full example uses: **cost tracker wraps cache wraps global fetch**. The order
+matters. The cost tracker sees every *call* (so it knows the request was made), but
+the cache may have already short-circuited the network. In practice this means
+cached calls are reported with whatever the upstream would have charged — useful for
+budgeting evals before you uncache them and actually pay.
 
 ---
 
@@ -269,6 +386,8 @@ Have fun. Build something. Watch your token bill not move.
 - OpenAI's Agents guide: <https://developers.openai.com/api/docs/guides/agents>
 - LM Studio: <https://lmstudio.ai/>
 - Ollama: <https://ollama.com/>
+- openai-cache: <https://github.com/jeromeetienne/openai-cache>
+- openai-cost: <https://github.com/jeromeetienne/openai-cost>
 - Runnable examples in this repo:
   [examples/agent_sdk_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_openai.ts),
   [examples/agent_sdk_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_lmstudio.ts),
