@@ -11,11 +11,13 @@
 		"example:chat_openai": "tsx examples/openai_chat_openai.ts",
 		"example:chat_lmstudio": "tsx examples/openai_chat_lmstudio.ts",
 		"example:chat_ollama": "tsx examples/openai_chat_ollama.ts",
-		"example:chat_all": "npm run example:chat_openai && npm run example:chat_lmstudio && npm run example:chat_ollama",
+		"example:chat_gemini": "tsx examples/openai_chat_gemini.ts",
+		"example:chat_all": "npm run example:chat_openai && npm run example:chat_lmstudio && npm run example:chat_ollama && npm run example:chat_gemini",
 		"example:agent_openai": "tsx examples/agent_sdk_openai.ts",
 		"example:agent_lmstudio": "tsx examples/agent_sdk_lmstudio.ts",
 		"example:agent_ollama": "tsx examples/agent_sdk_ollama.ts",
-		"example:agent_all": "npm run example:agent_openai && npm run example:agent_lmstudio && npm run example:agent_ollama",
+		"example:agent_gemini": "tsx examples/agent_sdk_gemini.ts",
+		"example:agent_all": "npm run example:agent_openai && npm run example:agent_lmstudio && npm run example:agent_ollama && npm run example:agent_gemini",
 		"example:chat_openai_full": "tsx examples/openai_chat_openai_full.ts"
 	},
 	"devDependencies": {

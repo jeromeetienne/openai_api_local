@@ -1,20 +1,22 @@
 # openai_api_local
 
 Minimal TypeScript examples for using [OpenAI Agents](https://github.com/openai/openai-agents-js)
-using models from [**OpenAI**](https://github.com/openai/openai-node), [**LM Studio**](https://github.com/lmstudio-ai), and [**Ollama**](https://github.com/ollama/ollama).
+using models from [**OpenAI**](https://github.com/openai/openai-node), [**LM Studio**](https://github.com/lmstudio-ai), [**Ollama**](https://github.com/ollama/ollama), and [**Google Gemini**](https://ai.google.dev/gemini-api/docs/openai).
 — write the code once, swap the `baseURL` to flip between hosted and local inference.
 
 
-Why three providers?
+Why four providers?
 - [**OpenAI**](https://github.com/openai/openai-node) (`api.openai.com`) — frontier models, requires `OPENAI_API_KEY`, costs money.
 - [**LM Studio**](https://github.com/lmstudio-ai) — runs any GGUF chat model on your laptop, exposes an OpenAI-compatible server, no key, no network, no cost.
 - [**Ollama**](https://github.com/ollama/ollama) — same idea as LM Studio, CLI-first instead of GUI-first, also exposes an OpenAI-compatible endpoint.
+- [**Google Gemini**](https://ai.google.dev/gemini-api/docs/openai) — hosted Gemini models exposed through an OpenAI-compatible endpoint, requires `GEMINI_API_KEY`.
 
-Because LM Studio and Ollama both implement the OpenAI HTTP protocol, the only thing that changes between them is the client config:
+Because LM Studio, Ollama, and Gemini all implement the OpenAI HTTP protocol, the only thing that changes between them is the client config:
 
 - OpenAI — `new OpenAI()` (reads `OPENAI_API_KEY` from env)
 - LM Studio — `new OpenAI({ baseURL: 'http://localhost:1234/v1', apiKey: 'lm-studio' })`
 - Ollama — `new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })`
+- Gemini — `new OpenAI({ baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', apiKey: process.env.GEMINI_API_KEY })`
 
 ## Setup
 
@@ -42,6 +44,13 @@ export OPENAI_API_KEY=sk-...
 3. Server defaults to `http://localhost:11434`.
 4. Override the model id if needed: `MODEL=<id> npm run example:chat_ollama` (Ollama model ids look like `llama3.2`, `qwen3:4b`, `mistral`, etc.).
 
+### To use Google Gemini
+
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey).
+2. Export it: `export GEMINI_API_KEY=...`.
+3. Endpoint is `https://generativelanguage.googleapis.com/v1beta/openai/` (Gemini's OpenAI-compatible layer, see [docs](https://ai.google.dev/gemini-api/docs/openai)).
+4. Override the model id if needed: `MODEL=<id> npm run example:chat_gemini` (e.g. `gemini-2.5-flash`, `gemini-2.5-pro`).
+
 ## Examples
 
 | Script | What it does |
@@ -49,9 +58,11 @@ export OPENAI_API_KEY=sk-...
 | `npm run example:chat_openai` | Basic `chat.completions` call against OpenAI. |
 | `npm run example:chat_lmstudio` | Same call, routed to your local LM Studio server. |
 | `npm run example:chat_ollama` | Same call, routed to your local Ollama server. |
+| `npm run example:chat_gemini` | Same call, routed to Google Gemini's OpenAI-compatible endpoint. |
 | `npm run example:agent_openai` | Minimal [@openai/agents](https://openai.github.io/openai-agents-js/) run via OpenAI (uses the Responses API). |
 | `npm run example:agent_lmstudio` | Same agent, routed to LM Studio. Uses the Chat Completions model class because LM Studio doesn't implement `/v1/responses`. |
 | `npm run example:agent_ollama` | Same agent, routed to Ollama. Also uses the Chat Completions model class (Ollama doesn't implement `/v1/responses` either). |
+| `npm run example:agent_gemini` | Same agent, routed to Gemini. Also uses the Chat Completions model class (Gemini's OpenAI shim doesn't implement `/v1/responses`). |
 | `npm run example:chat_openai_full` | OpenAI chat call wrapped with [openai-cache](https://github.com/jeromeetienne/openai-cache) and [openai-cost](https://github.com/jeromeetienne/openai-cost), both backed by sqlite. Sqlite files land in `outputs/`. Run twice to see the second run served from cache. |
 
 Every example accepts `MODEL=<id>` to override its default:
@@ -60,6 +71,7 @@ Every example accepts `MODEL=<id>` to override its default:
 MODEL=gpt-4o npm run example:chat_openai
 MODEL=qwen/qwen3-8b npm run example:chat_lmstudio
 MODEL=qwen3:4b npm run example:chat_ollama
+MODEL=gemini-2.5-pro npm run example:chat_gemini
 ```
 
 ## Project layout
@@ -69,9 +81,11 @@ examples/
   openai_chat_openai.ts        chat.completions, OpenAI
   openai_chat_lmstudio.ts      chat.completions, LM Studio
   openai_chat_ollama.ts        chat.completions, Ollama
+  openai_chat_gemini.ts        chat.completions, Google Gemini (OpenAI-compat)
   agent_sdk_openai.ts          @openai/agents, OpenAI (Responses API)
   agent_sdk_lmstudio.ts        @openai/agents, LM Studio (Chat Completions API)
   agent_sdk_ollama.ts          @openai/agents, Ollama (Chat Completions API)
+  agent_sdk_gemini.ts          @openai/agents, Gemini (Chat Completions API)
   openai_chat_openai_full.ts   + openai-cache + openai-cost, sqlite-backed
 outputs/                       generated sqlite files for the "full" example
 ```
