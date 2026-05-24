@@ -1,8 +1,6 @@
 # openai_api_local
 
-Minimal TypeScript examples for using [OpenAI Agents](https://github.com/openai/openai-agents-js)
-using models from [**OpenAI**](https://github.com/openai/openai-node), [**LM Studio**](https://github.com/lmstudio-ai), [**Ollama**](https://github.com/ollama/ollama), and [**Google Gemini**](https://ai.google.dev/gemini-api/docs/openai).
-— write the code once, swap the `baseURL` to flip between hosted and local inference.
+Minimal TypeScript examples for using [OpenAI Agents](https://github.com/openai/openai-agents-js) using models from [**OpenAI**](https://github.com/openai/openai-node), [**LM Studio**](https://github.com/lmstudio-ai), [**Ollama**](https://github.com/ollama/ollama), and [**Google Gemini**](https://ai.google.dev/gemini-api/docs/openai) - write the code once, swap the `baseURL` to flip between hosted and local inference.
 
 
 Why four providers?
