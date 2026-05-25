@@ -54,6 +54,10 @@ Use this exact structure (Markdown, no frontmatter):
 <post text>
 ```
 
+### Overall tone
+
+Posts should be **entertaining and engaging** across all three platforms. Aim for a voice that's playful, curious, and a little irreverent — the kind of thing a reader stops scrolling for. Use vivid verbs, surprising framings, and concrete details over generic claims. Wit and personality beat polish. That said, stay honest to the article (no hype, no invented facts) and tune the energy to each platform (sharpest on Twitter/Bluesky, slightly more measured on LinkedIn but never dull).
+
 ### Per-platform rules
 
 **Twitter / X** — ≤ 280 characters *including the link and any hashtags*. One punchy hook, one concrete detail, one link. 0–2 hashtags max, only if they're genuinely searched (e.g. `#TypeScript`, `#OpenAI`). No "🚀". No "Excited to share". Lead with the surprising thing, not "I wrote a blog post".

@@ -1,42 +1,35 @@
-# Social posts — How to run the OpenAI API on alternative providers (local and cloud)
+# Social posts — How to run the OpenAI API on something that isn't OpenAI
 
 ## Twitter / X (max 280 chars)
 
-Same OpenAI client points at LM Studio, Ollama, or Gemini — only baseURL + apiKey change. For the Agents SDK also swap OpenAIResponsesModel → OpenAIChatCompletionsModel; alt providers don't implement /v1/responses.
-
-github.com/jeromeetienne/openai_api_local
+The OpenAI HTTP protocol quietly became the QWERTY of LLMs. Point your client at LM Studio, Ollama, or Gemini — tools, handoffs, structured outputs unchanged. One Agents SDK trap: use OpenAIChatCompletionsModel. github.com/jeromeetienne/openai_api_local
 
 ---
 
 ## Bluesky (max 300 chars)
 
-Same OpenAI client code runs against LM Studio, Ollama, or Gemini — model becomes a config detail. The Agents SDK catch: alt providers expose /v1/chat/completions but not /v1/responses, so swap OpenAIResponsesModel → OpenAIChatCompletionsModel.
-
-github.com/jeromeetienne/openai_api_local
+The OpenAI HTTP protocol quietly became the QWERTY of LLMs. Once your code talks to api.openai.com, it can talk to LM Studio, Ollama, or Gemini — agents, tools, structured outputs unchanged. One Agents SDK trap: use OpenAIChatCompletionsModel. github.com/jeromeetienne/openai_api_local
 
 ---
 
 ## LinkedIn (800–1500 chars, multi-paragraph)
 
-The OpenAI HTTP protocol has quietly become a lingua franca for chat-style LLMs. Once your code speaks it, the model on the other end of the wire is largely a configuration detail — not a rewrite.
+The OpenAI HTTP protocol has quietly become the QWERTY of LLMs. Nobody voted on it, nobody sat down and standardized it, and yet here we are: half the model servers on the planet speak it.
 
-Point the same OpenAI client at LM Studio on your laptop, Ollama in the background, or Google Gemini's OpenAI-compatible endpoint. Only the baseURL and apiKey change. Same imports, same types, same downstream code.
+Which means once your code knows how to talk to api.openai.com, it also knows how to talk to a model on your laptop, on someone else's laptop, or in a Google data center — without rewriting a line of business logic.
 
-One gotcha specific to the OpenAI Agents JS SDK: LM Studio, Ollama, and Gemini all implement /v1/chat/completions but NOT the newer /v1/responses. Swap OpenAIResponsesModel for OpenAIChatCompletionsModel and you're done. With plain chat.completions you don't even need that — just the baseURL/apiKey change.
+What you actually change:
 
-What survives the swap:
+• Point the OpenAI client at a different baseURL and apiKey. That's the whole story for plain chat.completions.
+• On the Agents SDK, swap OpenAIResponsesModel for OpenAIChatCompletionsModel. LM Studio, Ollama, and Gemini all speak /v1/chat/completions but NOT /v1/responses — that's the entire trap.
+• Use a MODEL=<id> env var so you can A/B four backends in an afternoon instead of an afternoon per backend.
 
-- new Agent({ name, instructions, model }) — same shape
-- OpenaiAgents.run() — runner, retries, turn loop are SDK-side
-- Tools / function calling — works wherever the model supports it (Llama 3.1+, Qwen 2.5+, Mistral)
-- Structured outputs via Zod — most backends grammar-constrain it for you
-- Agent-to-agent handoffs — SDK-orchestrated, just work
+What still works: agents, instructions, function tools, structured outputs via Zod schemas, handoffs, the runner. The model becomes a configuration line, not an architectural decision.
 
-What doesn't: OpenAI-hosted built-ins (web search, file search, code interpreter) and the hosted tracing dashboard.
+What doesn't: OpenAI's hosted built-ins (web search, code interpreter, computer use) and the hosted tracing dashboard. Those are Responses-API features that only exist at openai.com — rebuild them as regular function tools if you need them.
 
-The whole pitch: the model becomes a configuration choice, not an architectural one. Try the same prompt on four different backends in an afternoon.
+Try the same prompt across four backends this afternoon. Picking which models will take longer than wiring them up.
 
-Full how-to and runnable examples:
-https://github.com/jeromeetienne/openai_api_local
+github.com/jeromeetienne/openai_api_local
 
-#TypeScript #OpenAI #LocalLLM #AgentsSDK #LLMOps
+#TypeScript #OpenAI #LocalLLM #AgentsSDK #DevTools
