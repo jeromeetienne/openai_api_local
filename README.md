@@ -61,7 +61,7 @@ export OPENAI_API_KEY=sk-...
 | `npm run example:agent_lmstudio` | Same agent, routed to LM Studio. Uses the Chat Completions model class because LM Studio doesn't implement `/v1/responses`. |
 | `npm run example:agent_ollama` | Same agent, routed to Ollama. Also uses the Chat Completions model class (Ollama doesn't implement `/v1/responses` either). |
 | `npm run example:agent_gemini` | Same agent, routed to Gemini. Also uses the Chat Completions model class (Gemini's OpenAI shim doesn't implement `/v1/responses`). |
-| `npm run example:chat_openai_full` | OpenAI chat call wrapped with [openai-cache](https://github.com/jeromeetienne/openai-cache) and [openai-cost](https://github.com/jeromeetienne/openai-cost), both backed by sqlite. Sqlite files land in `outputs/`. Run twice to see the second run served from cache. |
+| `npm run example:chat_full` | Full matrix: all 4 providers × {bare, cache, cost, cache+cost}, with [openai-cache](https://github.com/jeromeetienne/openai-cache) and [openai-cost](https://github.com/jeromeetienne/openai-cost) both backed by sqlite (files land in `outputs/`). Skips providers whose env var / local server isn't available. Run twice to see cache-enabled cells flip to `cache:true`. |
 
 Every example accepts `MODEL=<id>` to override its default:
 
@@ -84,7 +84,7 @@ examples/
   agent_sdk_lmstudio.ts        @openai/agents, LM Studio (Chat Completions API)
   agent_sdk_ollama.ts          @openai/agents, Ollama (Chat Completions API)
   agent_sdk_gemini.ts          @openai/agents, Gemini (Chat Completions API)
-  openai_chat_openai_full.ts   + openai-cache + openai-cost, sqlite-backed
+  openai_chat_full.ts          full matrix: every provider × {bare, cache, cost, cache+cost}
 outputs/                       generated sqlite files for the "full" example
 ```
 
@@ -99,7 +99,7 @@ The cool part: **openai-cache works just as well against LM Studio and Ollama** 
 
 (openai-cost is OpenAI-specific in practice — it prices calls using OpenAI's published rates, and local inference is free anyway, so there's nothing to track.)
 
-See [examples/openai_chat_openai_full.ts](examples/openai_chat_openai_full.ts) for the composition pattern (cost tracker wraps cache wraps global `fetch`).
+See [examples/openai_chat_full.ts](examples/openai_chat_full.ts) for the composition pattern (cost tracker wraps cache wraps global `fetch`), exercised across every provider and every wrapper combination — the canonical demo that the cache is provider-agnostic.
 
 ## Stack
 

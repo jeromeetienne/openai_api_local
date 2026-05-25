@@ -18,7 +18,7 @@
 		"example:agent_ollama": "tsx examples/agent_sdk_ollama.ts",
 		"example:agent_gemini": "tsx examples/agent_sdk_gemini.ts",
 		"example:agent_all": "npm run example:agent_openai && npm run example:agent_lmstudio && npm run example:agent_ollama && npm run example:agent_gemini",
-		"example:chat_openai_full": "tsx examples/openai_chat_openai_full.ts"
+		"example:chat_full": "tsx examples/openai_chat_full.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^22.10.0",
