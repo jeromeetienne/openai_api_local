@@ -16,6 +16,65 @@ Because LM Studio, Ollama, and Gemini all implement the OpenAI HTTP protocol, th
 - Ollama — `new OpenAI({ baseURL: 'http://localhost:11434/v1', apiKey: 'ollama' })`
 - Gemini — `new OpenAI({ baseURL: 'https://generativelanguage.googleapis.com/v1beta/openai/', apiKey: process.env.GEMINI_API_KEY })`
 
+## Guides
+
+Long-form companion write-ups that live alongside this repo:
+
+- [How to run the OpenAI API on something that isn't OpenAI](docs/openai_agents_sdk_providers_howto.article.md) — pointing your client (and the Agents SDK) at LM Studio, Ollama, and Google Gemini, and why the OpenAI HTTP protocol has quietly become the QWERTY of LLMs.
+- [How to control OpenAI API costs](docs/openai_api_cost_control_howto.article.md) — using [`openai-cache`](https://github.com/jeromeetienne/openai-cache) and [`openai-cost`](https://github.com/jeromeetienne/openai-cost) to slash spend during iteration and see exactly what each call cost.
+
+## OpenAI Chat API against LM Studio
+
+Minimal `chat.completions` call against a local LM Studio server. The only LM-Studio-specific part is the `baseURL` and a placeholder `apiKey` — everything below the `new OpenAI(...)` line is identical to a real-OpenAI script.
+
+```ts
+import { OpenAI } from 'openai';
+
+const openaiClient = new OpenAI({
+	baseURL: 'http://localhost:1234/v1',
+	apiKey: 'lm-studio',
+});
+
+const response = await openaiClient.chat.completions.create({
+	model: 'liquid/lfm2.5-1.2b',
+	messages: [
+		{ role: 'system', content: 'You answer in a single short sentence.' },
+		{ role: 'user', content: 'Say hello and name one fun fact about octopuses.' },
+	],
+});
+
+console.log(response.choices[0]?.message.content);
+```
+
+See [examples/openai_chat_lmstudio.ts](examples/openai_chat_lmstudio.ts) for the full script.
+
+## Agents SDK against LM Studio
+
+Same call, but driven by [`@openai/agents`](https://openai.github.io/openai-agents-js/). LM Studio doesn't implement `/v1/responses`, so the chat-completions model class is wired in explicitly instead of the SDK's default responses-based one.
+
+```ts
+import { OpenAI } from 'openai';
+import OpenaiAgents from '@openai/agents';
+import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
+
+const openaiClient = new OpenAI({
+	baseURL: 'http://localhost:1234/v1',
+	apiKey: 'lm-studio',
+});
+const model = new OpenAIChatCompletionsModel(openaiClient, 'liquid/lfm2.5-1.2b');
+
+const agent = new OpenaiAgents.Agent({
+	name: 'OctopusBot',
+	instructions: 'You answer in a single short sentence.',
+	model,
+});
+
+const result = await OpenaiAgents.run(agent, 'Say hello and name one fun fact about octopuses.');
+console.log(result.finalOutput);
+```
+
+See [examples/agent_sdk_lmstudio.ts](examples/agent_sdk_lmstudio.ts) for the full script.
+
 ## Setup
 
 ```sh
