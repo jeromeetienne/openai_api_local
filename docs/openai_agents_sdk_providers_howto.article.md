@@ -87,15 +87,61 @@ the desktop app starts the server for you at `http://localhost:11434`.
 just a URL.
 
 That is genuinely the entire setup. The "how do I write the client" part is a
-five-line file, and you should not write it from this article — you should crib it
-from the repo, where it's known to run:
+five-line file. Here are the two LM Studio variants in full — every other provider
+is the same shape, with a different URL and key.
+
+**Plain `chat.completions`** ([openai_chat_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_lmstudio.ts)):
+
+```ts
+import { OpenAI } from 'openai';
+
+const openaiClient = new OpenAI({
+        baseURL: 'http://localhost:1234/v1',
+        apiKey: 'lm-studio',
+});
+
+const response = await openaiClient.chat.completions.create({
+        model: 'liquid/lfm2.5-1.2b',
+        messages: [
+                { role: 'user', content: 'Say hello and name one fun fact about octopuses.' },
+        ],
+});
+console.log(response.choices[0]?.message.content);
+```
+
+**Agents SDK** ([agent_sdk_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_lmstudio.ts)):
+
+```ts
+import { OpenAI } from 'openai';
+import OpenaiAgents from '@openai/agents';
+import { OpenAIChatCompletionsModel } from '@openai/agents-openai';
+
+const openaiClient = new OpenAI({
+        baseURL: 'http://localhost:1234/v1',
+        apiKey: 'lm-studio',
+});
+const model = new OpenAIChatCompletionsModel(openaiClient, 'liquid/lfm2.5-1.2b');
+
+const agent = new OpenaiAgents.Agent({
+        name: 'OctopusBot',
+        instructions: 'You answer in a single short sentence.',
+        model,
+});
+
+const result = await OpenaiAgents.run(agent, 'Say hello and name one fun fact about octopuses.');
+console.log(result.finalOutput);
+```
+
+That's the trap from earlier, made concrete: the Agents SDK version wraps the
+client in `OpenAIChatCompletionsModel` (not `OpenAIResponsesModel`). Drop that one
+line and a 404 is your reward.
+
+The rest of the runnable variants live in the repo:
 
 - Agents SDK: [agent_sdk_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_openai.ts),
-  [agent_sdk_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_lmstudio.ts),
   [agent_sdk_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_ollama.ts),
   [agent_sdk_gemini.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/agent_sdk_gemini.ts)
 - Plain `chat.completions`: [openai_chat_openai.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_openai.ts),
-  [openai_chat_lmstudio.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_lmstudio.ts),
   [openai_chat_ollama.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_ollama.ts),
   [openai_chat_gemini.ts](https://github.com/jeromeetienne/openai_api_local/blob/HEAD/examples/openai_chat_gemini.ts)
 
