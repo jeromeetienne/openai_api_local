@@ -31,7 +31,7 @@
 		"cacheable": "^2.3.5",
 		"openai": "^6.39.0",
 		"openai-cache": "^1.0.35",
-		"openai-cost": "^1.0.27",
+		"openai-cost": "^1.0.29",
 		"zod": "^4.4.3"
 	}
 }
