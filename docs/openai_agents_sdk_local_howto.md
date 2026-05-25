@@ -5,10 +5,9 @@ nicest ways to build agentic apps in TypeScript today — tools, handoffs, traci
 guardrails all live behind a small API surface. But the official narrative assumes you
 are calling `api.openai.com` and burning credits every time you iterate.
 
-**This article — and this whole repo — is really about one thing: keeping the cost of
-running OpenAI-style AI under control, all through a single API surface.** The OpenAI
-HTTP protocol has become a *lingua franca*; once your code speaks it, you get three
-cost-control levers you can pull, in roughly increasing cost:
+This article is really about one thing: **keeping the cost of running OpenAI-style AI under control**, all through a single API surface. The repo is [openai_api_local](https://github.com/jeromeetienne/openai_api_local).
+
+The OpenAI HTTP protocol has become a *lingua franca*; once your code speaks it, you get three cost-control levers you can pull, in roughly increasing cost:
 
 1. **Run the model locally** — with [LM Studio](https://lmstudio.ai/) or
    [Ollama](https://ollama.com/), the model lives on your laptop. No API key, no
@@ -18,9 +17,7 @@ cost-control levers you can pull, in roughly increasing cost:
    come back from a local sqlite file instead of from OpenAI. Cheaper than uncached
    OpenAI, because the second call onward costs nothing.
 3. **Track what you spent** — for whatever you couldn't cache or run locally,
-   [openai-cost](https://github.com/jeromeetienne/openai-cost) records every paid call
-   into sqlite with a bucket id so you can see, per feature or per script, exactly
-   what it cost.
+   [openai-cost](https://github.com/jeromeetienne/openai-cost) records every paid call into sqlite with a bucket id so you can see, per feature or per script, exactly what it cost.
 
 The unifying trick is that all three plug into the same `OpenAI` client — same
 imports, same types, same agent code. **This guide focuses on lever #1**: getting the
